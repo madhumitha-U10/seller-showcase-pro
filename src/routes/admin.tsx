@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ShieldCheck, X } from "lucide-react";
+import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -55,6 +55,7 @@ function Admin() {
   const { data: signedIn, refresh: refreshAuth } = useStoreData(isAdmin);
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("approval");
   const [tick, setTick] = useState(0);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   const { data: sellers, refresh: refreshSellers } = useStoreData(allSellers);
   const { data: reviews, refresh: refreshReviews } = useStoreData(allReviews);
@@ -79,7 +80,12 @@ function Admin() {
             onSubmit={(e) => {
               e.preventDefault();
               const code = String(new FormData(e.currentTarget).get("code") ?? "");
-              if (code !== "madhunamma@Tale") {
+              const expectedCode = import.meta.env.VITE_ADMIN_PASSWORD;
+              if (!expectedCode) {
+                toast.error("Admin access is not configured. Set VITE_ADMIN_PASSWORD.");
+                return;
+              }
+              if (code !== expectedCode) {
                 toast.error("Invalid access code");
                 return;
               }
@@ -107,11 +113,18 @@ function Admin() {
   const all = sellers ?? [];
   const pending = all.filter((s) => s.status === "pending");
 
-  const decide = (id: string, status: "approved" | "rejected") => {
-    setSellerStatus(id, status);
-    refreshSellers();
-    setTick(tick + 1);
-    toast.success(status === "approved" ? "Seller approved and live" : "Seller rejected");
+  const decide = async (id: string, status: "approved" | "rejected") => {
+    setDecidingId(id);
+    try {
+      await setSellerStatus(id, status);
+      refreshSellers();
+      setTick(tick + 1);
+      toast.success(status === "approved" ? "Seller approved and live" : "Seller rejected");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update this seller");
+    } finally {
+      setDecidingId(null);
+    }
   };
 
   return (
@@ -164,13 +177,24 @@ function Admin() {
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      <Button size="sm" className="rounded-full" onClick={() => decide(s.id, "approved")}>
-                        <Check className="size-4" /> Approve
+                      <Button
+                        size="sm"
+                        className="rounded-full"
+                        disabled={decidingId === s.id}
+                        onClick={() => decide(s.id, "approved")}
+                      >
+                        {decidingId === s.id ? (
+                          <Loader2 className="size-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Check className="size-4" />
+                        )}
+                        {decidingId === s.id ? "Working…" : "Approve"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="rounded-full"
+                        disabled={decidingId === s.id}
                         onClick={() => decide(s.id, "rejected")}
                       >
                         <X className="size-4" /> Reject
@@ -206,12 +230,24 @@ function Admin() {
                       {s.status}
                     </Badge>
                     {s.status !== "approved" ? (
-                      <Button size="sm" variant="outline" className="rounded-full" onClick={() => decide(s.id, "approved")}>
-                        Approve
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={decidingId === s.id}
+                        onClick={() => decide(s.id, "approved")}
+                      >
+                        {decidingId === s.id ? "Working…" : "Approve"}
                       </Button>
                     ) : (
-                      <Button size="sm" variant="ghost" className="rounded-full" onClick={() => decide(s.id, "rejected")}>
-                        Suspend
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-full"
+                        disabled={decidingId === s.id}
+                        onClick={() => decide(s.id, "rejected")}
+                      >
+                        {decidingId === s.id ? "Working…" : "Suspend"}
                       </Button>
                     )}
                   </div>

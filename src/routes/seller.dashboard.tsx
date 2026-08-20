@@ -13,6 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
+
+import { useSellerSessionRefresh } from "@/hooks/use-seller-session-refresh";
 import {
   Bar,
   BarChart,
@@ -97,6 +99,8 @@ const VIEWS_7D = [
 ];
 
 function Dashboard() {
+  useSellerSessionRefresh();
+
   const [section, setSection] = useState<SectionId>("overview");
   const { data: sellerId } = useStoreData(getSession);
   const { data: seller, refresh: refreshSeller } = useStoreData(() => {

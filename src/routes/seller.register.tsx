@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { categories, registerSeller } from "@/lib/api";
 import { useStoreData } from "@/hooks/use-store-data";
 import { setSession } from "@/lib/session";
+import { sellerRegistrationSchema } from "@/lib/validation/seller";
 import {
   signUpSeller,
   validateNammaspotId,
@@ -45,21 +46,10 @@ export const Route = createFileRoute("/seller/register")({
   component: RegisterSeller,
 });
 
-const schema = z.object({
+const schema = sellerRegistrationSchema.extend({
   nammaspotId: z.string(),
   password: z.string(),
   confirmPassword: z.string(),
-  businessName: z.string().trim().min(2, "Business name is required").max(80),
-  ownerName: z.string().trim().min(2, "Owner name is required").max(80),
-  categoryId: z.string().min(1, "Pick a category"),
-  area: z.string().trim().min(2, "Enter your area").max(60),
-  city: z.string().trim().min(2).max(40),
-  instagram: z.string().trim().min(2, "Instagram handle is required").max(40),
-  whatsapp: z.string().trim().regex(/^[0-9]{10,15}$/, "Digits only, with country code"),
-  email: z.string().trim().email("Enter a valid email").max(120),
-  tagline: z.string().trim().min(6, "One line about your business").max(120),
-  about: z.string().trim().min(20, "Tell customers a bit more").max(1000),
-  priceFrom: z.coerce.number().min(0).max(1000000),
 });
 
 function RegisterSeller() {
@@ -85,7 +75,7 @@ function RegisterSeller() {
       categoryId,
       area: fd.get("area"),
       city: fd.get("city"),
-      instagram: String(fd.get("instagram") ?? "").replace("@", ""),
+      instagram: fd.get("instagram"),
       whatsapp: fd.get("whatsapp"),
       email: fd.get("email"),
       tagline: fd.get("tagline"),
@@ -166,12 +156,12 @@ function RegisterSeller() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="businessName">Business name</Label>
-              <Input id="businessName" name="businessName" className="mt-1.5" maxLength={80} />
+              <Input id="businessName" name="businessName" className="mt-1.5" maxLength={80} autoComplete="organization" />
               {err("businessName")}
             </div>
             <div>
               <Label htmlFor="ownerName">Your name</Label>
-              <Input id="ownerName" name="ownerName" className="mt-1.5" maxLength={80} />
+              <Input id="ownerName" name="ownerName" className="mt-1.5" maxLength={50} autoComplete="name" />
               {err("ownerName")}
             </div>
             <div>
@@ -198,22 +188,22 @@ function RegisterSeller() {
             </div>
             <div>
               <Label htmlFor="instagram">Instagram handle</Label>
-              <Input id="instagram" name="instagram" placeholder="ammaveedubakes" className="mt-1.5" maxLength={40} />
+              <Input id="instagram" name="instagram" placeholder="@ammaveedubakes" autoCapitalize="none" spellCheck={false} className="mt-1.5" maxLength={40} />
               {err("instagram")}
             </div>
             <div>
               <Label htmlFor="whatsapp">WhatsApp (with 91)</Label>
-              <Input id="whatsapp" name="whatsapp" inputMode="numeric" placeholder="919840112233" className="mt-1.5" maxLength={15} />
+              <Input id="whatsapp" name="whatsapp" type="tel" inputMode="numeric" placeholder="919840112233" className="mt-1.5" maxLength={15} />
               {err("whatsapp")}
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" className="mt-1.5" maxLength={120} />
+              <Input id="email" name="email" type="email" autoComplete="email" className="mt-1.5" maxLength={120} />
               {err("email")}
             </div>
             <div>
               <Label htmlFor="priceFrom">Starting price (₹)</Label>
-              <Input id="priceFrom" name="priceFrom" inputMode="numeric" defaultValue="500" className="mt-1.5" />
+              <Input id="priceFrom" name="priceFrom" type="number" min="0" max="999999" step="1" inputMode="numeric" defaultValue="500" className="mt-1.5" />
               {err("priceFrom")}
             </div>
           </div>
@@ -264,7 +254,7 @@ function RegisterSeller() {
           </div>
           <div>
             <Label htmlFor="tagline">One-line tagline</Label>
-            <Input id="tagline" name="tagline" className="mt-1.5" maxLength={120} />
+            <Input id="tagline" name="tagline" className="mt-1.5" maxLength={150} />
             {err("tagline")}
           </div>
           <div>
