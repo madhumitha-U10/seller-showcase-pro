@@ -1,4 +1,4 @@
-import { ImagePlus, Loader2 } from "lucide-react";
+import { CheckCircle2, ImagePlus, Loader2 } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +34,8 @@ export function PhotoPicker({
 }) {
   const inputId = useId();
   const [busy, setBusy] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   return (
     <div className="shrink-0">
@@ -73,6 +75,8 @@ export function PhotoPicker({
           e.target.value = "";
           if (!file) return;
           setBusy(true);
+          setUploadError("");
+          setUploadSuccess(false);
           try {
             const url = bucket
               ? await uploadForBucket(bucket, file)
@@ -80,13 +84,32 @@ export function PhotoPicker({
             const normalized = normalizeImageUrl(url);
             if (!normalized) throw new Error("Could not use that image");
             onPicked(normalized);
+            setUploadSuccess(true);
+            setTimeout(() => setUploadSuccess(false), 2000);
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Could not use that image");
+            const message = err instanceof Error ? err.message : "Could not use that image";
+            setUploadError(message);
+            toast.error(message);
           } finally {
             setBusy(false);
           }
         }}
       />
+      {busy && (
+        <p className="mt-1.5 text-xs text-muted-foreground" role="status">
+          Uploading…
+        </p>
+      )}
+      {uploadSuccess && (
+        <p className="mt-1.5 flex items-center gap-1 text-xs text-primary" role="status">
+          <CheckCircle2 className="size-3.5" aria-hidden /> Image uploaded
+        </p>
+      )}
+      {uploadError && (
+        <p className="mt-1.5 max-w-48 text-xs text-destructive" role="alert">
+          {uploadError}
+        </p>
+      )}
     </div>
   );
 }
