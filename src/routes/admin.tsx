@@ -80,7 +80,7 @@ function Admin() {
             onSubmit={(e) => {
               e.preventDefault();
               const code = String(new FormData(e.currentTarget).get("code") ?? "");
-              const expectedCode = import.meta.env.VITE_ADMIN_PASSWORD;
+              const expectedCode = import.meta.env['VITE_ADMIN_PASSWORD'];
               if (!expectedCode) {
                 toast.error("Admin access is not configured. Set VITE_ADMIN_PASSWORD.");
                 return;
