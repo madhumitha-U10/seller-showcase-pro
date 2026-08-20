@@ -16,6 +16,7 @@ export const MEDIA_BUCKETS = ["seller-avatars", "product-images", "story-images"
 export type MediaBucket = (typeof MEDIA_BUCKETS)[number];
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const UPLOAD_TIMEOUT_MS = 30_000;
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/avif"];
 
 /** Throws a human-readable error when the file is not an acceptable image. */
@@ -94,12 +95,39 @@ async function uploadToBucket(
   if (!userId) return await fileToCompressedDataUrl(file, maxSide, quality);
 
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(path, blob, { contentType: "image/jpeg", upsert: true, cacheControl: "3600" });
 
-  if (error) throw new Error("Upload failed. Please check your connection and try again.");
-  return mediaUrl(bucket, path);
+  // Flaky mobile networks are the norm here: retry up to 3 times with
+  // exponential backoff (1s, 2s) and a 30s timeout per attempt.
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      try {
+        const { error } = await supabase.storage.from(bucket).upload(path, blob, {
+          contentType: "image/jpeg",
+          upsert: true,
+          cacheControl: "3600",
+          ...({ signal: controller.signal } as Record<string, unknown>),
+        });
+        if (error) throw new Error(error.message);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      return mediaUrl(bucket, path);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt === maxRetries) break;
+      await new Promise((resolve) => setTimeout(resolve, 2 ** (attempt - 1) * 1000));
+    }
+  }
+
+  console.error("Image upload failed:", lastError);
+  throw new Error(
+    "Image upload failed after 3 attempts. Please check your internet connection and try again.",
+  );
 }
 
 /** Seller profile picture — square-ish, stored at 400px. */
